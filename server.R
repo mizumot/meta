@@ -4,7 +4,8 @@ library(meta)
 library(metafor)
 library(MAd)
 library(MAc)
-
+library(quantreg)
+library(ggplot2)
 
 
 shinyServer(function(input, output) {
@@ -25,11 +26,10 @@ shinyServer(function(input, output) {
             sd1i=SD1, sd2i=SD2,
             data=dat, append=TRUE)
             
-            dat$ES <- round(dat$yi, 3)
+            dat$ES <- dat$yi
             dat$yi <- NULL
-            dat$SV <- round(dat$vi, 3) # SV=sampling variances
+            dat$SV <- dat$vi # SV=sampling variances
             dat$vi <- NULL
-            dat$W  <- round(1/dat$SV, 3)
             
             list(dat = dat) # To be used later
         }
@@ -40,25 +40,20 @@ shinyServer(function(input, output) {
             df <- (dat$N1 + dat$N2) - 2
             j <- 1 - (3/(4 * df - 1))
             g <- j * dat$d
-            dat$ES <- round(g, 3)
+            dat$ES <- g
             
-            dat$SV <- round((((dat$N1+dat$N2)/(dat$N1*dat$N2))+((dat$ES*dat$ES)/(2*(dat$N1+dat$N2)))),3)
+            dat$SV <- (((dat$N1+dat$N2)/(dat$N1*dat$N2))+((dat$ES*dat$ES)/(2*(dat$N1+dat$N2))))
             
-            dat$W  <- round(1/dat$SV, 3)
-
-
             list(dat = dat) # To be used later
         }
         
         
         else if (input$type == "cor") {
             
-            dat <- read.csv(text=input$text, sep="\t")
-            
             dat <- escalc(measure="ZCOR", ni=N, ri=r, data=dat, append=TRUE)
-            dat$FZ <- round(dat$yi,3)
+            dat$FZ <- dat$yi
             dat$yi <- NULL
-            dat$SV <- round(dat$vi, 3) # SV=sampling variances
+            dat$SV <- dat$vi # SV=sampling variances
             dat$vi <- NULL
 
             list(dat = dat) # To be used later
@@ -70,24 +65,23 @@ shinyServer(function(input, output) {
     
 
 
-# Fixed effects model to be used later
+# Fixed effects model to be used later（精度を高めるため小数点以下丸めない）
     FE.est <- reactive({
         
-        dat <- read.csv(text=input$text, sep="\t")
-
-
         if (input$type == "mdms") {
+            
+            dat <- read.csv(text=input$text, sep="\t")
             
             dat <- escalc(measure="SMD", n1i=N1, n2i=N2,
             m1i=M1, m2i=M2,
             sd1i=SD1, sd2i=SD2,
             data=dat, append=TRUE)
             
-            dat$ES <- round(dat$yi, 3)
+            dat$ES <- dat$yi # 小数点以下丸めるのを外している
             dat$yi <- NULL
-            dat$SV <- round(dat$vi, 3) # SV=sampling variances
+            dat$SV <- dat$vi # 小数点以下丸めるのを外している
             dat$vi <- NULL
-            
+
             FE.res <- rma(ES, SV, method="FE", data=dat, slab=paste(Study))
             
             list(FE.res = FE.res) # To be used later
@@ -95,12 +89,14 @@ shinyServer(function(input, output) {
         
         else if (input$type == "mdes") {
             
+            dat <- read.csv(text=input$text, sep="\t")
+
             df <- (dat$N1 + dat$N2) - 2
             j <- 1 - (3/(4 * df - 1))
             g <- j * dat$d
-            dat$ES <- round(g, 3)
+            dat$ES <- g  # 小数点以下丸めるのを外している
             
-            dat$SV <- round((((dat$N1+dat$N2)/(dat$N1*dat$N2))+((dat$ES*dat$ES)/(2*(dat$N1+dat$N2)))),3)
+            dat$SV <- (((dat$N1+dat$N2)/(dat$N1*dat$N2))+((dat$ES*dat$ES)/(2*(dat$N1+dat$N2)))) # 小数点以下丸めるのを外している
             
             FE.res <- rma(ES, SV, method="FE", data=dat, slab=paste(Study))
             
@@ -110,12 +106,14 @@ shinyServer(function(input, output) {
         
         else if (input$type == "cor") {
             
-            dat <- escalc(measure="ZCOR", ni=N, ri=r, data=dat, append=TRUE)
-            dat$FZ <- round(dat$yi,4)
-            dat$yi <- NULL
-            dat$SV <- round(dat$vi, 4) # SV=sampling variances
-            dat$vi <- NULL
+            dat <- read.csv(text=input$text, sep="\t")
             
+            dat <- escalc(measure="ZCOR", ni=N, ri=r, data=dat, append=TRUE)
+            dat$FZ <- dat$yi
+            dat$yi <- NULL
+            dat$SV <- dat$vi # SV=sampling variances
+            dat$vi <- NULL
+
             FE.res <- rma(FZ, SV, data=dat, method = "FE", slab=paste(Study))
             
             list(FE.res = FE.res) # To be used later
@@ -128,22 +126,21 @@ shinyServer(function(input, output) {
     
 # Random effects model to be used later
     RE.est  <- reactive({
-        
-        dat <- read.csv(text=input$text, sep="\t")
-
 
         if (input$type == "mdms") {
+            
+            dat <- read.csv(text=input$text, sep="\t")
             
             dat <- escalc(measure="SMD", n1i=N1, n2i=N2,
             m1i=M1, m2i=M2,
             sd1i=SD1, sd2i=SD2,
             data=dat, append=TRUE)
             
-            dat$ES <- round(dat$yi, 3)
+            dat$ES <- dat$yi # 小数点以下丸めるのを外している
             dat$yi <- NULL
-            dat$SV <- round(dat$vi, 3) # SV=sampling variances
+            dat$SV <- dat$vi # 小数点以下丸めるのを外している
             dat$vi <- NULL
-            
+
             RE.res <- rma(ES, SV, method="REML", data=dat, slab=paste(Study))
             
             list(RE.res = RE.res) # To be used later
@@ -152,13 +149,15 @@ shinyServer(function(input, output) {
         
         else if (input$type == "mdes") {
             
+            dat <- read.csv(text=input$text, sep="\t")
+            
             df <- (dat$N1 + dat$N2) - 2
             j <- 1 - (3/(4 * df - 1))
             g <- j * dat$d
-            dat$ES <- round(g, 3)
+            dat$ES <- g  # 小数点以下丸めるのを外している
             
-            dat$SV <- round((((dat$N1+dat$N2)/(dat$N1*dat$N2))+((dat$ES*dat$ES)/(2*(dat$N1+dat$N2)))),3)
-            
+            dat$SV <- (((dat$N1+dat$N2)/(dat$N1*dat$N2))+((dat$ES*dat$ES)/(2*(dat$N1+dat$N2)))) # 小数点以下丸めるのを外している
+
             RE.res <- rma(ES, SV, method="REML", data=dat, slab=paste(Study))
             
             list(RE.res = RE.res) # To be used later
@@ -167,12 +166,14 @@ shinyServer(function(input, output) {
         
         else if (input$type == "cor") {
             
-            dat <- escalc(measure="ZCOR", ni=N, ri=r, data=dat, append=TRUE)
-            dat$FZ <- round(dat$yi,4)
-            dat$yi <- NULL
-            dat$SV <- round(dat$vi, 4) # SV=sampling variances
-            dat$vi <- NULL
+            dat <- read.csv(text=input$text, sep="\t")
             
+            dat <- escalc(measure="ZCOR", ni=N, ri=r, data=dat, append=TRUE)
+            dat$FZ <- dat$yi
+            dat$yi <- NULL
+            dat$SV <- dat$vi # SV=sampling variances
+            dat$vi <- NULL
+
             RE.res <- rma(FZ, SV, data=dat, method = "REML", slab=paste(Study))
 
             list(RE.res = RE.res) # To be used later
@@ -195,11 +196,19 @@ shinyServer(function(input, output) {
     
         if (input$type == "mdms") {
         
-            dat <- W.data()$dat
-        
+            dat <- escalc(measure="SMD", n1i=N1, n2i=N2,
+                            m1i=M1, m2i=M2,
+                            sd1i=SD1, sd2i=SD2,
+                            data=dat, append=TRUE)
+            
+            dat$ES <- round(dat$yi, 3)
+            dat$yi <- NULL
+            dat$SV <- round(dat$vi, 3) # SV=sampling variances
+            dat$vi <- NULL
+
             cat("\n","ES = Effect size [Hedges's g]", "\n",
-                "SV = Sampling variance [sqrt(SV) = Std err]", "\n",
-                " W = Inverse variance weight [1/SV]", "\n", "\n")
+                "SV = Sampling variance [sqrt(SV) = Std err]", "\n", "\n"
+                ) # ," W = Inverse variance weight", "\n", "\n"
                 cat("---","\n")
         
             print(dat)
@@ -208,11 +217,16 @@ shinyServer(function(input, output) {
     
         else if (input$type == "mdes") {
         
-            dat <- W.data()$dat
+            df <- (dat$N1 + dat$N2) - 2
+            j <- 1 - (3/(4 * df - 1))
+            g <- j * dat$d
+            dat$ES <- round(g, 3)
+            
+            dat$SV <- round((((dat$N1+dat$N2)/(dat$N1*dat$N2))+((dat$ES*dat$ES)/(2*(dat$N1+dat$N2)))),3)
         
             cat("\n","ES = Effect size [Hedges's g]", "\n",
-                "SV = Sampling variance [sqrt(SV) = Std err]", "\n",
-                " W = Inverse variance weight [1/SV]", "\n", "\n")
+                "SV = Sampling variance [sqrt(SV) = Std err]", "\n", "\n"
+                ) # , " W = Inverse variance weight", "\n", "\n"
                 cat("---","\n")
         
             print(dat)
@@ -221,8 +235,12 @@ shinyServer(function(input, output) {
     
         else if (input$type == "cor") {
         
-            dat <- W.data()$dat
-        
+            dat <- escalc(measure="ZCOR", ni=N, ri=r, data=dat, append=TRUE)
+            dat$FZ <- round(dat$yi,3)
+            dat$yi <- NULL
+            dat$SV <- round(dat$vi, 3) # SV=sampling variances
+            dat$vi <- NULL
+
             cat("\n","FZ = Fisher's Z", "\n",
                 "SV = Sampling variance [sqrt(SV) = Std err]", "\n", "\n")
                 cat("---","\n")
@@ -242,13 +260,10 @@ shinyServer(function(input, output) {
 
     fe <- reactive({
         
-        dat <- read.csv(text=input$text, sep="\t")
-
-
         if (input$type == "mdms") {
             
             FE.res <- FE.est()$FE.res
-            
+
             cat("The FE model is a description of the K studies (Kovalchik, 2013).","\n")
             cat("---","\n")
             
@@ -540,12 +555,22 @@ shinyServer(function(input, output) {
 
     modAnalysis <- reactive({
         
-        if (input$moderator == 1) {
+        #if (input$moderator == 1) {
             
             
             if (input$type == "mdms") {
                 
-                dat <- W.data()$dat
+                dat <- read.csv(text=input$text, sep="\t")
+                
+                dat <- escalc(measure="SMD", n1i=N1, n2i=N2,
+                m1i=M1, m2i=M2,
+                sd1i=SD1, sd2i=SD2,
+                data=dat, append=TRUE)
+                
+                dat$ES <- dat$yi # 小数点以下を丸めない
+                dat$yi <- NULL
+                dat$SV <- dat$vi # 小数点以下を丸めない
+                dat$vi <- NULL
                 
                 fixed <- MAd::macat(ES, SV, mod = Moderator, data=dat, method= "fixed")
                 random <- MAd::macat(ES, SV, mod = Moderator, data=dat, method= "random")
@@ -561,7 +586,14 @@ shinyServer(function(input, output) {
             
             else if (input$type == "mdes") {
                 
-                dat <- W.data()$dat
+                dat <- read.csv(text=input$text, sep="\t")
+                
+                df <- (dat$N1 + dat$N2) - 2
+                j <- 1 - (3/(4 * df - 1))
+                g <- j * dat$d
+                dat$ES <- g # 小数点以下を丸めない
+                
+                dat$SV <- (((dat$N1+dat$N2)/(dat$N1*dat$N2))+((dat$ES*dat$ES)/(2*(dat$N1+dat$N2)))) # 小数点以下を丸めない
 
                 fixed <- MAd::macat(ES, SV, mod = Moderator, data=dat, method= "fixed")
                 random <- MAd::macat(ES, SV, mod = Moderator, data=dat, method= "random")
@@ -577,7 +609,15 @@ shinyServer(function(input, output) {
             
             else if (input$type == "cor") {
                 
-                dat <- W.data()$dat
+                dat <- read.csv(text=input$text, sep="\t")
+                
+                dat <- escalc(measure="ZCOR", ni=N, ri=r, data=dat, append=TRUE)
+                dat$FZ <- dat$yi # 小数点以下を丸めない
+                dat$yi <- NULL
+                dat$SV <- dat$vi # 小数点以下を丸めない
+                dat$vi <- NULL
+                
+                
                 dat$var.z <- var_z(dat$N) # 正確な値を計算するために追加
                 
                 # Fixed effects
@@ -605,18 +645,100 @@ shinyServer(function(input, output) {
                 
             }
             
-        } else {
+            #} else {
             
-            cat("No moderator (subgroup) analysis is conducted.","\n")
+            #cat("No moderator (subgroup) analysis is conducted.","\n")
             
-        }
+            #}
         
     })
     
     
     
     
+
+################################################
+# Categorical Moderator Graph
+################################################
+
+    ModFixGraph <- function(){
     
+        if (input$type == "mdms") {
+        
+            dat <- W.data()$dat
+        
+            MAd::plotcat(ES, SV, mod = Moderator, data = dat, method= "fixed", modname= "Moderator")
+        
+        }
+    
+    
+        else if (input$type == "mdes") {
+        
+            dat <- W.data()$dat
+
+            MAd::plotcat(ES, SV, mod = Moderator, data = dat, method= "fixed", modname= "Moderator")
+            
+        }
+    
+    
+        else if (input$type == "cor") {
+        
+            dat <- W.data()$dat
+
+            MAd::plotcat(FZ, SV, mod = Moderator, data = dat, method= "fixed", modname= "Moderator")
+        
+        }
+    
+    }
+
+
+    output$ModFixGraph <- renderPlot({
+        print(ModFixGraph())
+    })
+
+
+
+
+
+    ModRandGraph <- function(){
+    
+        if (input$type == "mdms") {
+        
+            dat <- W.data()$dat
+        
+            MAd::plotcat(ES, SV, mod = Moderator, data = dat, method= "random", modname= "Moderator")
+        
+        }
+    
+    
+        else if (input$type == "mdes") {
+        
+            dat <- W.data()$dat
+        
+            MAd::plotcat(ES, SV, mod = Moderator, data = dat, method= "random", modname= "Moderator")
+        
+        }
+    
+    
+        else if (input$type == "cor") {
+        
+            dat <- W.data()$dat
+        
+            MAd::plotcat(FZ, SV, mod = Moderator, data = dat, method= "random", modname= "Moderator")
+        
+        }
+    
+    }
+
+
+    output$ModRandGraph <- renderPlot({
+        print(ModRandGraph())
+    })
+
+
+
+
+
 ################################################
 # R session info
 ################################################
