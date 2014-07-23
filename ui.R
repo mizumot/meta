@@ -4,6 +4,8 @@ library(meta)
 library(metafor)
 library(MAd)
 library(MAc)
+library(quantreg)
+library(ggplot2)
 
 
 
@@ -116,9 +118,27 @@ mainPanel(
 
             br(),
 
-            h3("Moderator (subgroup) analysis"),
+            # Display this only if "moderator" is checked
+            conditionalPanel(condition = "input.moderator == true",
+                h3("Moderator (subgroup) analysis"),
+                verbatimTextOutput("modAnalysis.out")
+            ),
 
-            verbatimTextOutput("modAnalysis.out"),
+            br(),
+
+            # Display this only if "moderator" is checked
+            conditionalPanel(condition = "input.moderator == true",
+                h4("Categorical moderator graph (Fixed effects model)"),
+                plotOutput("ModFixGraph")
+            ),
+
+            br(),
+
+            # Display this only if "moderator" is checked
+            conditionalPanel(condition = "input.moderator == true",
+                h4("Categorical moderator graph (Random effects model)"),
+                plotOutput("ModRandGraph")
+            ),
 
             br(),
             br(),
@@ -175,6 +195,8 @@ br()
             code('library(meta)'),br(),
             code('library(MAd)'),br(),
             code('library(MAc)'),br(),
+            code('library(quantreg)'),br(),
+            code('library(ggplot2)'),br(),
 
 
             br(),
