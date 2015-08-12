@@ -185,9 +185,7 @@ shinyServer(function(input, output) {
     
     
 
-################################################
-# Displaying the first calculation
-################################################
+# -- Displaying the first calculation --
 
     data <- reactive({
     
@@ -255,7 +253,7 @@ shinyServer(function(input, output) {
 
 
 ################################################
-# FE & RE model result
+# -- FE & RE model result
 ################################################
 
     fe <- reactive({

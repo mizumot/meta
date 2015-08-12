@@ -34,7 +34,6 @@ shinyUI(bootstrapPage(
 mainPanel(
 
 
-
     tabsetPanel(
 
         tabPanel("Main",
